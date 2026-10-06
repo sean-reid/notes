@@ -150,6 +150,13 @@ button {
   pointer-events: none;
 }
 
+.caret-mark {
+  display: inline-block;
+  width: 0;
+  height: 1lh;
+  vertical-align: top;
+}
+
 .veil {
   position: absolute;
   inset: 0 0 auto 0;
@@ -249,10 +256,4 @@ button {
   margin-top: 3lh;
   color: var(--ink-soft);
   font-size: 0.875rem;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .veil {
-    transition: height 120ms ease-out;
-  }
 }

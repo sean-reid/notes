@@ -1,0 +1,180 @@
+import { expect, test, type Page } from "@playwright/test";
+
+const LINES = [
+  "The trick is to keep the hand moving.",
+  "Stopping is where the judging starts.",
+  "Everything above this line is still here, saved, just out of sight.",
+  "A paragraph break is the only structure there is.",
+  "The three lines you can read are the ones you are in the middle of.",
+  "This is the line being typed right now.",
+];
+
+async function typeLines(page: Page, lines: string[]): Promise<void> {
+  await expect(page.locator(".surface")).toBeFocused();
+  for (const [i, line] of lines.entries()) {
+    if (i) await page.keyboard.press("Enter");
+    await page.keyboard.type(line);
+  }
+}
+
+const saved = (page: Page) =>
+  expect.poll(() => page.evaluate(() => localStorage.getItem("notes:draft"))).toBeNull();
+
+const metrics = (page: Page) =>
+  page.evaluate(() => {
+    const ta = document.querySelector<HTMLTextAreaElement>(".surface");
+    const veil = document.querySelector<HTMLElement>(".veil");
+    if (!ta || !veil) throw new Error("surface missing");
+    return {
+      lineHeight: parseFloat(getComputedStyle(ta).lineHeight),
+      height: ta.getBoundingClientRect().height,
+      veil: veil.getBoundingClientRect().height,
+      caret: ta.selectionStart,
+      value: ta.value,
+      lastLineTop: ta.getBoundingClientRect().bottom - parseFloat(getComputedStyle(ta).lineHeight),
+    };
+  });
+
+test("a new note shows one sentence of help until the first character", async ({ page }) => {
+  await page.goto("/");
+  const hint = page.locator(".hint");
+  await expect(hint).toBeVisible();
+  await expect(page.locator(".surface")).toBeFocused();
+  await page.keyboard.type("a");
+  await expect(hint).toBeHidden();
+  await expect(page).toHaveURL(/\/n\/[0-9a-hj-kmnp-tv-z]{10}$/);
+});
+
+test("lines past the last three go under the veil and the last line holds still", async ({
+  page,
+}, info) => {
+  await page.goto("/");
+  await typeLines(page, LINES.slice(0, 2));
+  let m = await metrics(page);
+  expect(m.veil).toBe(0);
+  const before = m.lastLineTop;
+
+  await page.keyboard.press("Enter");
+  for (const [i, line] of LINES.slice(2).entries()) {
+    if (i) await page.keyboard.press("Enter");
+    await page.keyboard.type(line);
+  }
+  m = await metrics(page);
+  const lines = Math.round(m.height / m.lineHeight);
+  expect(lines).toBeGreaterThan(3);
+  expect(m.veil).toBeCloseTo(m.height - 3 * m.lineHeight, 0);
+  expect(Math.abs(m.lastLineTop - before)).toBeLessThan(2);
+  await page.screenshot({ path: info.outputPath("writing.png") });
+});
+
+test("the caret cannot climb into the veiled lines", async ({ page }) => {
+  await page.goto("/");
+  await typeLines(page, LINES);
+  const end = await metrics(page);
+  for (let i = 0; i < 8; i++) await page.keyboard.press("ArrowUp");
+  const m = await metrics(page);
+  expect(m.caret).toBeLessThan(end.caret);
+  const hiddenEnd = await page.evaluate(() => {
+    const ta = document.querySelector<HTMLTextAreaElement>(".surface");
+    if (!ta) throw new Error("surface missing");
+    const lh = parseFloat(getComputedStyle(ta).lineHeight);
+    const mirror = document.querySelector<HTMLElement>(".mirror");
+    if (!mirror) throw new Error("mirror missing");
+    const marker = document.createElement("span");
+    marker.className = "caret-mark";
+    mirror.textContent = ta.value.slice(0, ta.selectionStart);
+    mirror.append(marker);
+    const caretLine = Math.round(marker.offsetTop / lh);
+    const total = Math.round(ta.getBoundingClientRect().height / lh);
+    return { caretLine, firstVisible: total - 3 };
+  });
+  expect(hiddenEnd.caretLine).toBeGreaterThanOrEqual(hiddenEnd.firstVisible);
+  await page.keyboard.press("Home");
+  await page.keyboard.type("Edited: ");
+  const after = await metrics(page);
+  expect(after.value).toContain("Edited: ");
+  expect(after.value.indexOf("Edited: ")).toBeGreaterThan(LINES[0]!.length);
+});
+
+test("the note survives a reload and appears in the list", async ({ page }, info) => {
+  await page.goto("/");
+  await typeLines(page, LINES.slice(0, 2));
+  await saved(page);
+  await page.reload();
+  await expect(page.locator(".surface")).toHaveValue(LINES.slice(0, 2).join("\n"));
+
+  await page.goto("/notes");
+  const item = page.locator(".notes a");
+  await expect(item).toHaveCount(1);
+  await expect(item.locator(".title")).toHaveText(LINES[0]!);
+  await expect(item.locator("time")).toHaveText("Today");
+  await page.screenshot({ path: info.outputPath("list.png"), fullPage: true });
+});
+
+test("done reveals the whole note with copy, download, and delete", async ({
+  page,
+  context,
+  browserName,
+}, info) => {
+  await page.goto("/");
+  await typeLines(page, LINES);
+  await page.getByRole("button", { name: "Done" }).click();
+  const reveal = page.locator(".reveal");
+  await expect(reveal).toContainText(LINES[0]!);
+  await expect(reveal).toContainText(LINES[5]!);
+  await expect(page.locator(".count")).toHaveText(/^\d+ words$/);
+  await page.screenshot({ path: info.outputPath("reveal.png"), fullPage: true });
+
+  if (browserName === "chromium") {
+    await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+    await page.getByRole("button", { name: "Copy" }).click();
+    await expect(page.locator(".status")).toHaveText("Copied");
+    const clip = await page.evaluate(() => navigator.clipboard.readText());
+    expect(clip).toBe(`${LINES.join("\n")}\n`);
+  }
+
+  const downloading = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Download .txt" }).click();
+  const download = await downloading;
+  expect(download.suggestedFilename()).toBe("the-trick-is-to-keep-the-hand-moving.txt");
+
+  await page.getByRole("link", { name: "Keep writing" }).click();
+  await expect(page.locator(".surface")).toHaveValue(LINES.join("\n"));
+  await page.getByRole("button", { name: "Done" }).click();
+
+  const remove = page.getByRole("button", { name: "Delete" });
+  await remove.click();
+  await expect(page.getByRole("button", { name: "Delete this note?" })).toBeVisible();
+  await page.getByRole("button", { name: "Delete this note?" }).click();
+  await expect(page).toHaveURL(/\/notes$/);
+  await expect(page.locator(".notes a")).toHaveCount(0);
+  await expect(page.getByText("Nothing here yet.")).toBeVisible();
+});
+
+test("done on an empty note leaves nothing behind", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Done" }).click();
+  await expect(page).toHaveURL(/\/notes$/);
+  await expect(page.locator(".notes a")).toHaveCount(0);
+});
+
+test("a note id from another device says so", async ({ page }, info) => {
+  await page.goto("/n/zzzzzzzzzz");
+  await expect(page.getByText("This note is not on this device.")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Start writing" })).toBeVisible();
+  await page.screenshot({ path: info.outputPath("missing.png") });
+  await page.goto("/elsewhere");
+  await expect(page.getByText("Nothing here.")).toBeVisible();
+});
+
+test("a draft left in localStorage is recovered on the next visit", async ({ page }) => {
+  await page.goto("/notes");
+  await page.evaluate(() => {
+    localStorage.setItem(
+      "notes:draft",
+      JSON.stringify({ id: "abcdefgh23", text: "rescued line", updated: Date.now() }),
+    );
+  });
+  await page.goto("/n/abcdefgh23");
+  await expect(page.locator(".surface")).toHaveValue("rescued line");
+});
