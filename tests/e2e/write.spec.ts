@@ -22,7 +22,13 @@ async function typeLines(page: Page, lines: string[]): Promise<void> {
 }
 
 const saved = (page: Page) =>
-  expect.poll(() => page.evaluate(() => localStorage.getItem("notes:draft"))).toBeNull();
+  expect
+    .poll(() =>
+      page.evaluate(
+        () => Object.keys(localStorage).filter((k) => k.startsWith("notes:draft:")).length,
+      ),
+    )
+    .toBe(0);
 
 const metrics = (page: Page) =>
   page.evaluate(() => {
@@ -173,8 +179,8 @@ test("a draft left in localStorage is recovered on the next visit", async ({ pag
   await page.goto("/notes");
   await page.evaluate(() => {
     localStorage.setItem(
-      "notes:draft",
-      JSON.stringify({ id: "abcdefgh23", text: "rescued line", updated: Date.now() }),
+      "notes:draft:abcdefgh23",
+      JSON.stringify({ text: "rescued line", updated: Date.now() }),
     );
   });
   await page.goto("/n/abcdefgh23");
@@ -216,7 +222,9 @@ test("hiding the tab writes the note at once", async ({ page }) => {
   await page.goto("/");
   await ready(page);
   await page.keyboard.type("quick");
-  expect(await page.evaluate(() => localStorage.getItem("notes:draft"))).not.toBeNull();
+  expect(
+    await page.evaluate(() => Object.keys(localStorage).some((k) => k.startsWith("notes:draft:"))),
+  ).toBe(true);
   await page.evaluate(() => {
     Object.defineProperty(document, "visibilityState", { value: "hidden", configurable: true });
     document.dispatchEvent(new Event("visibilitychange"));
