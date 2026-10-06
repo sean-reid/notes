@@ -1,6 +1,6 @@
 {
   "name": "notes",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "description": "A page that fades what you have written, so you keep writing.",
