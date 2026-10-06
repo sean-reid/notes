@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/sean-reid/notes/compare/notes-v0.1.0...notes-v0.1.1) (2026-10-06)
+
+
+### Bug Fixes
+
+* keep one recovery draft per note ([#6](https://github.com/sean-reid/notes/issues/6)) ([05352b8](https://github.com/sean-reid/notes/commit/05352b88327beeba5d9696f14477be7c0e5144e6)), closes [#5](https://github.com/sean-reid/notes/issues/5)
+
 ## 0.1.0 (2026-10-06)
 
 
