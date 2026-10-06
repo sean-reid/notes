@@ -1,0 +1,37 @@
+{
+  "name": "notes",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "A page that fades what you have written, so you keep writing.",
+  "scripts": {
+    "dev": "wrangler dev",
+    "dev:web": "vite",
+    "build": "vite build",
+    "typecheck": "tsc --noEmit && tsc -p worker/tsconfig.json",
+    "lint": "eslint src worker scripts tests vite.config.ts playwright.config.ts eslint.config.js prettier.config.js --max-warnings 0",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "size": "node scripts/size.mjs",
+    "deploy": "npm run build && wrangler deploy"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261006.1",
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^26.6.4",
+    "eslint": "^10.12.0",
+    "fake-indexeddb": "^6.2.5",
+    "prettier": "^3.9.9",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.71.1",
+    "vite": "^8.3.3",
+    "vitest": "^5.0.3",
+    "wrangler": "^4.147.0"
+  }
+}
