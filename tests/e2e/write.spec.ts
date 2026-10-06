@@ -1,4 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
+import { VISIBLE_LINES } from "../../src/surface.ts";
+import { HINT } from "../../src/views/write.ts";
 
 const LINES = [
   "The trick is to keep the hand moving.",
@@ -9,8 +11,10 @@ const LINES = [
   "This is the line being typed right now.",
 ];
 
+const ready = (page: Page) => expect(page.locator(".surface")).toBeFocused();
+
 async function typeLines(page: Page, lines: string[]): Promise<void> {
-  await expect(page.locator(".surface")).toBeFocused();
+  await ready(page);
   for (const [i, line] of lines.entries()) {
     if (i) await page.keyboard.press("Enter");
     await page.keyboard.type(line);
@@ -37,9 +41,9 @@ const metrics = (page: Page) =>
 
 test("a new note shows one sentence of help until the first character", async ({ page }) => {
   await page.goto("/");
+  await ready(page);
   const hint = page.locator(".hint");
-  await expect(hint).toBeVisible();
-  await expect(page.locator(".surface")).toBeFocused();
+  await expect(hint).toHaveText(HINT);
   await page.keyboard.type("a");
   await expect(hint).toBeHidden();
   await expect(page).toHaveURL(/\/n\/[0-9a-hj-kmnp-tv-z]{10}$/);
@@ -55,14 +59,11 @@ test("lines past the last three go under the veil and the last line holds still"
   const before = m.lastLineTop;
 
   await page.keyboard.press("Enter");
-  for (const [i, line] of LINES.slice(2).entries()) {
-    if (i) await page.keyboard.press("Enter");
-    await page.keyboard.type(line);
-  }
+  await typeLines(page, LINES.slice(2));
   m = await metrics(page);
   const lines = Math.round(m.height / m.lineHeight);
-  expect(lines).toBeGreaterThan(3);
-  expect(m.veil).toBeCloseTo(m.height - 3 * m.lineHeight, 0);
+  expect(lines).toBeGreaterThan(VISIBLE_LINES);
+  expect(m.veil).toBeCloseTo(m.height - VISIBLE_LINES * m.lineHeight, 0);
   expect(Math.abs(m.lastLineTop - before)).toBeLessThan(2);
   await page.screenshot({ path: info.outputPath("writing.png") });
 });
@@ -74,7 +75,7 @@ test("the caret cannot climb into the veiled lines", async ({ page }) => {
   for (let i = 0; i < 8; i++) await page.keyboard.press("ArrowUp");
   const m = await metrics(page);
   expect(m.caret).toBeLessThan(end.caret);
-  const hiddenEnd = await page.evaluate(() => {
+  const hiddenEnd = await page.evaluate((VISIBLE) => {
     const ta = document.querySelector<HTMLTextAreaElement>(".surface");
     if (!ta) throw new Error("surface missing");
     const lh = parseFloat(getComputedStyle(ta).lineHeight);
@@ -86,8 +87,8 @@ test("the caret cannot climb into the veiled lines", async ({ page }) => {
     mirror.append(marker);
     const caretLine = Math.round(marker.offsetTop / lh);
     const total = Math.round(ta.getBoundingClientRect().height / lh);
-    return { caretLine, firstVisible: total - 3 };
-  });
+    return { caretLine, firstVisible: total - VISIBLE };
+  }, VISIBLE_LINES);
   expect(hiddenEnd.caretLine).toBeGreaterThanOrEqual(hiddenEnd.firstVisible);
   await page.keyboard.press("Home");
   await page.keyboard.type("Edited: ");
@@ -119,6 +120,7 @@ test("done reveals the whole note with copy, download, and delete", async ({
   await page.goto("/");
   await typeLines(page, LINES);
   await page.getByRole("button", { name: "Done" }).click();
+  await expect(page).toHaveURL(/\/n\/[0-9a-hj-kmnp-tv-z]{10}\/done$/);
   const reveal = page.locator(".reveal");
   await expect(reveal).toContainText(LINES[0]!);
   await expect(reveal).toContainText(LINES[5]!);
@@ -177,4 +179,178 @@ test("a draft left in localStorage is recovered on the next visit", async ({ pag
   });
   await page.goto("/n/abcdefgh23");
   await expect(page.locator(".surface")).toHaveValue("rescued line");
+});
+
+test("select all and the jump keys stay out of the veiled lines", async ({ page }) => {
+  await page.goto("/");
+  await typeLines(page, LINES);
+  const end = (await metrics(page)).caret;
+  for (const key of ["Control+Home", "Control+ArrowUp", "PageUp"]) {
+    await page.keyboard.press(key);
+    expect((await metrics(page)).caret).toBe(end);
+  }
+  await page.keyboard.press("ControlOrMeta+a");
+  await expect.poll(async () => (await metrics(page)).caret).toBe(end);
+  await page.keyboard.type("!");
+  expect((await metrics(page)).value).toBe(`${LINES.join("\n")}!`);
+});
+
+test("arrow up still moves on a short note", async ({ page }) => {
+  await page.goto("/");
+  await typeLines(page, LINES.slice(0, 2));
+  const end = (await metrics(page)).caret;
+  await page.keyboard.press("ArrowUp");
+  expect((await metrics(page)).caret).toBeLessThan(end);
+});
+
+test("the last line is pinned again after the viewport shrinks", async ({ page }) => {
+  await page.goto("/");
+  await typeLines(page, LINES);
+  await page.setViewportSize({ width: 375, height: 560 });
+  await expect.poll(async () => (await metrics(page)).lastLineTop).toBeLessThan(560 * 0.5);
+  expect((await metrics(page)).lastLineTop).toBeGreaterThan(560 * 0.3);
+});
+
+test("hiding the tab writes the note at once", async ({ page }) => {
+  await page.clock.install();
+  await page.goto("/");
+  await ready(page);
+  await page.keyboard.type("quick");
+  expect(await page.evaluate(() => localStorage.getItem("notes:draft"))).not.toBeNull();
+  await page.evaluate(() => {
+    Object.defineProperty(document, "visibilityState", { value: "hidden", configurable: true });
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+  await saved(page);
+  const stored = await page.evaluate(
+    () =>
+      new Promise<number>((resolve) => {
+        const req = indexedDB.open("notes", 1);
+        req.onsuccess = () => {
+          const count = req.result.transaction("notes").objectStore("notes").count();
+          count.onsuccess = () => resolve(count.result);
+        };
+      }),
+  );
+  expect(stored).toBe(1);
+});
+
+test("a note emptied out again is removed", async ({ page }) => {
+  await page.goto("/");
+  await ready(page);
+  await page.keyboard.type("gone soon");
+  await saved(page);
+  await page.keyboard.press("ControlOrMeta+a");
+  await page.keyboard.press("Backspace");
+  await page.getByRole("link", { name: "Notes", exact: true }).click();
+  await expect(page.getByText("Nothing here yet.")).toBeVisible();
+  const stored = await page.evaluate(
+    () =>
+      new Promise<number>((resolve) => {
+        const req = indexedDB.open("notes", 1);
+        req.onsuccess = () => {
+          const count = req.result.transaction("notes").objectStore("notes").count();
+          count.onsuccess = () => resolve(count.result);
+        };
+      }),
+  );
+  expect(stored).toBe(0);
+});
+
+test("delete disarms itself after five seconds", async ({ page }) => {
+  await page.clock.install();
+  await page.goto("/");
+  await ready(page);
+  await page.keyboard.type("keep me");
+  await page.getByRole("button", { name: "Done" }).click();
+  await page.getByRole("button", { name: "Delete" }).click();
+  await expect(page.getByRole("button", { name: "Delete this note?" })).toBeVisible();
+  await page.clock.runFor(5000);
+  await expect(page.getByRole("button", { name: "Delete", exact: true })).toBeVisible();
+});
+
+test("copy falls back to selecting the text when the clipboard is refused", async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText: () => Promise.reject(new Error("refused")) },
+    });
+  });
+  await page.goto("/");
+  await ready(page);
+  await page.keyboard.type("select me");
+  await page.getByRole("button", { name: "Done" }).click();
+  await page.getByRole("button", { name: "Copy" }).click();
+  await expect(page.locator(".status")).toHaveText("Select and copy");
+  expect(await page.evaluate(() => getSelection()?.toString())).toContain("select me");
+});
+
+test("back returns from the list to the note", async ({ page }) => {
+  await page.goto("/");
+  await ready(page);
+  await page.keyboard.type("come back");
+  await saved(page);
+  await page.getByRole("link", { name: "Notes", exact: true }).click();
+  await expect(page.locator(".notes a")).toHaveCount(1);
+  await page.goBack();
+  await expect(page.locator(".surface")).toHaveValue("come back");
+});
+
+test("back from the finished view returns to writing", async ({ page }) => {
+  await page.goto("/");
+  await ready(page);
+  await page.keyboard.type("round trip");
+  await page.getByRole("button", { name: "Done" }).click();
+  await expect(page.locator(".reveal")).toHaveText("round trip\n");
+  await page.reload();
+  await expect(page.locator(".reveal")).toHaveText("round trip\n");
+  await page.goBack();
+  await expect(page.locator(".surface")).toHaveValue("round trip");
+});
+
+test("tapping blank paper keeps the caret", async ({ page }) => {
+  await page.goto("/");
+  await ready(page);
+  await page.keyboard.type("stay");
+  await page.mouse.click(100, 600);
+  await ready(page);
+  await page.keyboard.type(" put");
+  await expect(page.locator(".surface")).toHaveValue("stay put");
+});
+
+test("a long note never makes the page scrollable", async ({ page }) => {
+  await page.goto("/");
+  await ready(page);
+  await page.evaluate(() => {
+    const ta = document.querySelector<HTMLTextAreaElement>(".surface");
+    if (!ta) throw new Error("surface missing");
+    ta.value = Array.from({ length: 300 }, (_, i) => `Line ${i + 1} of a long note.`).join("\n");
+    ta.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  await page.mouse.wheel(0, -4000);
+  const scrolled = await page.evaluate(() => ({
+    y: window.scrollY,
+    overflow: document.documentElement.scrollHeight - window.innerHeight,
+  }));
+  expect(scrolled.y).toBe(0);
+  expect(scrolled.overflow).toBeLessThanOrEqual(0);
+  const m = await metrics(page);
+  const viewport = page.viewportSize()?.height ?? 0;
+  expect(m.lastLineTop).toBeGreaterThan(viewport * 0.3);
+  expect(m.lastLineTop).toBeLessThan(viewport * 0.5);
+});
+
+test("a caret stranded by a reflow moves back into view", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/");
+  await ready(page);
+  const two = [LINES[0]!, LINES[2]!];
+  await typeLines(page, two);
+  await page.evaluate(() =>
+    document.querySelector<HTMLTextAreaElement>(".surface")?.setSelectionRange(0, 0),
+  );
+  await expect.poll(async () => (await metrics(page)).caret).toBe(0);
+  await page.setViewportSize({ width: 320, height: 600 });
+  await expect.poll(async () => (await metrics(page)).caret).toBe(two.join("\n").length);
+  await page.keyboard.type("!");
+  expect((await metrics(page)).value.endsWith("!")).toBe(true);
 });
