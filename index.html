@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content"
+    />
+    <title>notes</title>
+    <meta
+      name="description"
+      content="A page that fades what you have written, so you keep writing. Kept in your browser, exported as plain text."
+    />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link
+      rel="preload"
+      href="/fonts/literata-latin.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <header class="bar">
+      <a class="wordmark" href="/">notes</a>
+      <nav aria-label="Note menu" id="menu"></nav>
+    </header>
+    <main id="main"></main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

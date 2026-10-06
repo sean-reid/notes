@@ -1,0 +1,258 @@
+@font-face {
+  font-family: "Literata";
+  src: url("/fonts/literata-latin.woff2") format("woff2");
+  font-weight: 400;
+  font-display: swap;
+}
+
+:root {
+  color-scheme: light;
+  --paper: #f4efe6;
+  --ink: #1b1a17;
+  --ink-soft: #625c51;
+  --rule: #c9c1b1;
+  --serif: "Literata", "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  --measure: 34rem;
+  --gutter: 1.25rem;
+  --anchor: 40svh;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --paper: #161513;
+    --ink: #ebe5d9;
+    --ink-soft: #a29b8d;
+    --rule: #3a3731;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--paper);
+}
+
+body {
+  margin: 0;
+  min-height: 100svh;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: 1.125rem;
+  line-height: 1.6;
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (min-width: 768px) {
+  body {
+    font-size: 1.25rem;
+  }
+}
+
+a {
+  color: inherit;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.bar {
+  position: fixed;
+  inset: 0 0 auto 0;
+  z-index: 2;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: max(0.25rem, env(safe-area-inset-top)) var(--gutter) 0;
+  font-size: 0.9375rem;
+  line-height: 1;
+}
+
+.bar a,
+.bar button {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--ink-soft);
+  text-decoration: none;
+}
+
+.bar a:hover,
+.bar button:hover {
+  color: var(--ink);
+}
+
+.bar .wordmark {
+  color: var(--ink);
+}
+
+.bar nav {
+  display: flex;
+  gap: 1.5rem;
+}
+
+.page {
+  max-width: var(--measure);
+  margin: 0 auto;
+  padding: var(--anchor) var(--gutter) 100svh;
+}
+
+.page.plain {
+  padding: 5rem var(--gutter) 4rem;
+}
+
+.sheet {
+  position: relative;
+}
+
+.surface,
+.mirror {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  line-height: inherit;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+
+.surface {
+  resize: none;
+  outline: none;
+  overflow: hidden;
+  caret-color: var(--ink);
+}
+
+.mirror {
+  position: absolute;
+  inset: 0 0 auto 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.veil {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 0;
+  background: linear-gradient(
+    to bottom,
+    var(--paper) calc(100% - 1lh),
+    color-mix(in srgb, var(--paper) 72%, transparent)
+  );
+}
+
+.hint {
+  margin: 1lh 0 0;
+  color: var(--ink-soft);
+}
+
+.reveal {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 1.75rem;
+  margin-top: 2lh;
+  padding-top: 0.5lh;
+  border-top: 1px solid var(--rule);
+}
+
+.actions button,
+.actions a {
+  min-height: 44px;
+  padding: 0.5rem 0;
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-color: var(--rule);
+  text-underline-offset: 0.2em;
+}
+
+.actions button:hover,
+.actions a:hover {
+  text-decoration-color: var(--ink);
+}
+
+.count,
+.status {
+  margin: 1lh 0 0;
+  color: var(--ink-soft);
+}
+
+.notes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.notes li {
+  border-top: 1px solid var(--rule);
+}
+
+.notes li:last-child {
+  border-bottom: 1px solid var(--rule);
+}
+
+.notes a {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 44px;
+  padding: 0.75rem 0;
+  text-decoration: none;
+}
+
+.notes a:hover .title {
+  text-decoration: underline;
+  text-decoration-color: var(--rule);
+  text-underline-offset: 0.2em;
+}
+
+.notes .title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notes time {
+  flex: none;
+  color: var(--ink-soft);
+  font-size: 0.875em;
+}
+
+.colophon {
+  display: flex;
+  gap: 1.75rem;
+  margin-top: 3lh;
+  color: var(--ink-soft);
+  font-size: 0.875rem;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .veil {
+    transition: height 120ms ease-out;
+  }
+}
