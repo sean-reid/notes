@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.2](https://github.com/sean-reid/notes/compare/notes-v0.1.1...notes-v0.1.2) (2026-10-06)
+
+
+### Dependencies
+
+* pin sharp to 0.35.5 under miniflare ([#8](https://github.com/sean-reid/notes/issues/8)) ([105ea33](https://github.com/sean-reid/notes/commit/105ea33528cef452a4948a72213c07418d8e93f8))
+
 ## [0.1.1](https://github.com/sean-reid/notes/compare/notes-v0.1.0...notes-v0.1.1) (2026-10-06)
 
 
