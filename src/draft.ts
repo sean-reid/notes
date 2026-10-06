@@ -1,3 +1,4 @@
+import { isId } from "./id.ts";
 import type { Note, NoteStore } from "./store.ts";
 
 export interface Draft {
@@ -18,6 +19,7 @@ export function readDraft(storage: Storage): Draft | null {
     if (typeof id !== "string" || typeof text !== "string" || typeof updated !== "number") {
       return null;
     }
+    if (!isId(id) || !Number.isFinite(updated)) return null;
     return { id, text, updated };
   } catch {
     return null;
@@ -32,8 +34,9 @@ export function writeDraft(storage: Storage, draft: Draft): void {
   }
 }
 
-export function clearDraft(storage: Storage): void {
-  storage.removeItem(DRAFT_KEY);
+// Another tab may hold a different note's draft under the same key.
+export function clearDraft(storage: Storage, id: string): void {
+  if (readDraft(storage)?.id === id) storage.removeItem(DRAFT_KEY);
 }
 
 // A draft newer than the stored note means the tab closed before the
@@ -41,10 +44,13 @@ export function clearDraft(storage: Storage): void {
 export async function recover(store: NoteStore, storage: Storage): Promise<Note | null> {
   const draft = readDraft(storage);
   if (!draft) return null;
-  clearDraft(storage);
   const stored = await store.get(draft.id);
-  if (stored && stored.updated >= draft.updated) return null;
-  if (draft.text.trim() === "" && !stored) return null;
+  const stale =
+    (stored && stored.updated >= draft.updated) || (draft.text.trim() === "" && !stored);
+  if (stale) {
+    clearDraft(storage, draft.id);
+    return null;
+  }
   const note: Note = {
     id: draft.id,
     text: draft.text,
@@ -52,5 +58,6 @@ export async function recover(store: NoteStore, storage: Storage): Promise<Note 
     updated: draft.updated,
   };
   await store.put(note);
+  clearDraft(storage, draft.id);
   return note;
 }

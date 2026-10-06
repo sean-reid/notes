@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { fileNameFor, plainText, titleOf, wordCount } from "../../src/text.ts";
+import { fileNameFor, plainText, TITLE_LENGTH, titleOf, wordCount } from "../../src/text.ts";
 
 describe("titleOf", () => {
   it("takes the first non-empty line, trimmed", () => {
     expect(titleOf("\n\n  Morning pages  \nmore")).toBe("Morning pages");
   });
-  it("cuts at 80 characters", () => {
-    expect(titleOf("x".repeat(100))).toHaveLength(80);
+  it("cuts at the title length", () => {
+    expect(titleOf("x".repeat(TITLE_LENGTH + 20))).toHaveLength(TITLE_LENGTH);
   });
   it("falls back when there is no text", () => {
     expect(titleOf("  \n ")).toBe("Untitled");

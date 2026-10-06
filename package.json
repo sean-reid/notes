@@ -5,7 +5,7 @@
   "type": "module",
   "description": "A page that fades what you have written, so you keep writing.",
   "scripts": {
-    "dev": "wrangler dev",
+    "dev": "npm run build && wrangler dev",
     "dev:web": "vite",
     "build": "vite build",
     "typecheck": "tsc --noEmit && tsc -p worker/tsconfig.json",

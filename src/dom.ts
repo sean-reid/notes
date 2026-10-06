@@ -1,5 +1,7 @@
 type Child = Node | string;
 
+export const notesLink = (): HTMLAnchorElement => el("a", { href: "/notes" }, "Notes");
+
 export function el<K extends keyof HTMLElementTagNameMap>(
   tag: K,
   attrs: Record<string, string> = {},
