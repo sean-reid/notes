@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.0](https://github.com/sean-reid/notes/compare/notes-v0.1.2...notes-v0.2.0) (2026-11-26)
+
+
+### Features
+
+* serve the site from notes.seanre.id ([#15](https://github.com/sean-reid/notes/issues/15)) ([0628631](https://github.com/sean-reid/notes/commit/0628631d198b15ca64f350e4435083ad377bb27b))
+
 ## [0.1.2](https://github.com/sean-reid/notes/compare/notes-v0.1.1...notes-v0.1.2) (2026-10-06)
 
 
