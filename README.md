@@ -1,6 +1,6 @@
 # notes
 
-A writing page at [notes.dwainosaur.com](https://notes.dwainosaur.com). You type, and once you are past three lines the older ones fade off the page. What you wrote is kept; you just cannot see it until you are done. The point is to keep going instead of re-reading. Finishing shows the whole note with copy and download as plain text, which pastes cleanly into Docs, Word, or Pages.
+A writing page at [notes.seanre.id](https://notes.seanre.id). You type, and once you are past three lines the older ones fade off the page. What you wrote is kept; you just cannot see it until you are done. The point is to keep going instead of re-reading. Finishing shows the whole note with copy and download as plain text, which pastes cleanly into Docs, Word, or Pages.
 
 Notes live in your browser and nowhere else. There are no accounts and nothing is sent to a server. The list at /notes shows every note on this device by its first line; each note has its own /n/ address that only opens on the device that wrote it. From the finished view you can keep writing or delete the note, with one tap to confirm.
 

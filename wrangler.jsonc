@@ -12,5 +12,5 @@
   "observability": { "enabled": true },
   "workers_dev": true,
   "preview_urls": true,
-  "routes": [{ "pattern": "notes.dwainosaur.com", "custom_domain": true }],
+  "routes": [{ "pattern": "notes.seanre.id", "custom_domain": true }],
 }
